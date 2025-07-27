@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Comparison Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .container {
+            text-align: center;
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .page-links {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        .page-link {
+            display: inline-block;
+            padding: 15px 30px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        .page-link:hover {
+            background-color: #0056b3;
+        }
+        .instructions {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+            text-align: left;
+            max-width: 600px;
+        }
+        .controls {
+            margin-top: 20px;
+        }
+        .reset-btn {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .reset-btn:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Image Comparison Tool</h1>
+        
+        <div class="page-links">
+            <a href="/left" class="page-link" target="_blank">Left Page</a>
+            <a href="/right" class="page-link" target="_blank">Right Page</a>
+        </div>
+        
+        <div class="instructions">
+            <h3>Instructions:</h3>
+            <ul>
+                <li>Click "Left Page" to open the left image viewer</li>
+                <li>Click "Right Page" to open the right image viewer</li>
+                <li>Both pages will show images from the CSV file</li>
+                <li>Press <strong>Left Arrow</strong> or <strong>Right Arrow</strong> keys on either page to advance to the next image pair</li>
+                <li>Images are synchronized across both pages using Server-Sent Events</li>
+            </ul>
+        </div>
+        
+        <div class="controls">
+            <button class="reset-btn" onclick="resetImages()">Reset to First Image</button>
+        </div>
+    </div>
+
+    <script>
+        function resetImages() {
+            fetch('/reset')
+                .then(response => response.json())
+                .then(data => {
+                    alert('Reset to first image pair');
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+    </script>
+</body>
+</html>

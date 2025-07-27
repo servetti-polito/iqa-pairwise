@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Viewer - {{ page_type.title() }} Page</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        
+        .image-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        
+        .main-image {
+            width: 100vw;
+            height: 100vh;
+            object-fit: contain;
+            display: block;
+        }
+        
+        .connection-status {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 1001;
+        }
+        
+        .connected {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .disconnected {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .loading {
+            color: white;
+            text-align: center;
+            font-size: 18px;
+        }
+        
+        .error {
+            color: #ff6b6b;
+            text-align: center;
+            font-size: 18px;
+        }
+        
+        .end-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.95);
+            color: white;
+            padding: 30px 40px;
+            border-radius: 15px;
+            font-size: 16px;
+            font-weight: normal;
+            text-align: left;
+            z-index: 1002;
+            display: none;
+            max-width: 80vw;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .summary-title {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+            color: #4CAF50;
+        }
+        
+        .summary-item {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            border-left: 4px solid #4CAF50;
+        }
+        
+        .summary-item.left-choice {
+            border-left-color: #dc3545;
+        }
+        
+        .summary-item.right-choice {
+            border-left-color: #28a745;
+        }
+        
+        .image-pair {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .choice {
+            font-size: 14px;
+            color: #ccc;
+        }
+        
+        .choice.left-arrow {
+            color: #ff7b7b;
+        }
+        
+        .choice.right-arrow {
+            color: #7bff7b;
+        }
+        
+        .key-feedback {
+            position: absolute;
+            bottom: 20px;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+            pointer-events: none;
+        }
+        
+        .key-feedback.show {
+            opacity: 1;
+        }
+        
+        .key-feedback.left-arrow {
+            left: 20px;
+            background-color: rgba(220, 53, 69, 0.9);
+        }
+        
+        .key-feedback.right-arrow {
+            right: 20px;
+            background-color: rgba(40, 167, 69, 0.9);
+        }
+    </style>
+</head>
+<body>
+    <div class="image-container">
+        <!--
+        <div class="connection-status disconnected" id="connectionStatus">
+            Connecting...
+        </div>
+        -->
+        
+        <div class="loading" id="loadingMessage">
+            Loading images...
+        </div>
+        
+        <img class="main-image" id="mainImage" style="display: none;" alt="Main Image">
+        
+        <div class="end-message" id="endMessage">
+            <div class="summary-title">Session Complete</div>
+            <div id="summaryContent">No feedback recorded</div>
+        </div>
+        
+        <div class="key-feedback" id="keyFeedback">
+            <span id="keyFeedbackText"></span>
+        </div>
+    </div>
+
+    <script>
+        const pageType = '{{ page_type }}';
+        let currentLeftImage = '';
+        let currentRightImage = '';
+        let eventSource = null;
+        
+        // DOM elements
+        const mainImage = document.getElementById('mainImage');
+        const loadingMessage = document.getElementById('loadingMessage');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const keyFeedback = document.getElementById('keyFeedback');
+        const keyFeedbackText = document.getElementById('keyFeedbackText');
+        const endMessage = document.getElementById('endMessage');
+        const summaryContent = document.getElementById('summaryContent');
+        
+        function connectToServer() {
+            if (eventSource) {
+                eventSource.close();
+            }
+            
+            eventSource = new EventSource('/events');
+            
+            eventSource.onopen = function() {
+                console.log('Connected to server');
+                // connectionStatus.textContent = 'Connected';
+                // connectionStatus.className = 'connection-status connected';
+            };
+            
+            eventSource.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    updateImages(data.left_image, data.right_image, data.index, data.summary);
+                } catch (error) {
+                    console.error('Error parsing SSE data:', error);
+                }
+            };
+            
+            eventSource.onerror = function() {
+                console.log('Disconnected from server');
+                // connectionStatus.textContent = 'Disconnected';
+                // connectionStatus.className = 'connection-status disconnected';
+                
+                // Try to reconnect after 3 seconds
+                setTimeout(() => {
+                    console.log('Attempting to reconnect...');
+                    connectToServer();
+                }, 3000);
+            };
+        }
+        
+        function displaySummary(summary) {
+            if (!summary || summary.length === 0) {
+                summaryContent.innerHTML = '<p>No feedback was recorded during this session.</p>';
+                return;
+            }
+            
+            let summaryHTML = '';
+            
+            summary.forEach((item, index) => {
+                const choiceClass = item.key_pressed === 'ArrowLeft' ? 'left-choice' : 'right-choice';
+                const choiceText = item.key_pressed === 'ArrowLeft' ? '← Left Arrow' : '→ Right Arrow';
+                const choiceColorClass = item.key_pressed === 'ArrowLeft' ? 'left-arrow' : 'right-arrow';
+                
+                summaryHTML += `
+                    <div class="summary-item ${choiceClass}">
+                        <div class="image-pair">
+                            Image ${item.image_index + 1}: ${item.left_image} vs ${item.right_image}
+                        </div>
+                        <div class="choice ${choiceColorClass}">
+                            Choice: ${choiceText}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            summaryContent.innerHTML = summaryHTML;
+        }
+        
+        function updateImages(leftImage, rightImage, index, summary) {
+            currentLeftImage = leftImage;
+            currentRightImage = rightImage;
+            
+            // Check if we've reached the end
+            if (leftImage === 'END' || rightImage === 'END') {
+                mainImage.style.display = 'none';
+                loadingMessage.style.display = 'none';
+                
+                // Display summary if available
+                if (summary) {
+                    displaySummary(summary);
+                }
+                
+                endMessage.style.display = 'block';
+                return;
+            }
+            
+            const imageToShow = pageType === 'left' ? leftImage : rightImage;
+            
+            if (imageToShow) {
+                // Create image path - assuming images are in static/images folder
+                const imagePath = `/static/images/${imageToShow}`;
+                
+                mainImage.src = imagePath;
+                mainImage.style.display = 'block';
+                loadingMessage.style.display = 'none';
+                endMessage.style.display = 'none';
+                
+                // Handle image load error
+                mainImage.onerror = function() {
+                    loadingMessage.textContent = `Error loading image: ${imageToShow}`;
+                    loadingMessage.className = 'error';
+                    loadingMessage.style.display = 'block';
+                    mainImage.style.display = 'none';
+                };
+                
+                mainImage.onload = function() {
+                    if (loadingMessage.className === 'error') {
+                        loadingMessage.className = 'loading';
+                    }
+                };
+            }
+        }
+        
+        function showKeyFeedback(key) {
+            let feedbackText = '';
+            let feedbackClass = '';
+            
+            if (key === 'ArrowLeft') {
+                feedbackText = '← Left';
+                feedbackClass = 'left-arrow';
+            } else if (key === 'ArrowRight') {
+                feedbackText = '→ Right';
+                feedbackClass = 'right-arrow';
+            }
+            
+            if (feedbackText) {
+                keyFeedbackText.textContent = feedbackText;
+                keyFeedback.className = `key-feedback show ${feedbackClass}`;
+                
+                // Hide the feedback after 1 second
+                setTimeout(() => {
+                    keyFeedback.className = 'key-feedback';
+                }, 1000);
+            }
+        }
+        
+        function sendKeypress(key) {
+            const data = {
+                key: key,
+                left_image: currentLeftImage,
+                right_image: currentRightImage
+            };
+            
+            fetch('/keypress', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Keypress response:', data);
+                /*
+                if (data.status === 'end') {
+                    alert('Reached the end of images');
+                }
+                */
+            })
+            .catch(error => {
+                console.error('Error sending keypress:', error);
+            });
+        }
+        
+        // Keyboard event listener
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+                event.preventDefault();
+                
+                // Show visual feedback immediately
+                showKeyFeedback(event.key);
+                
+                // Send keypress to server
+                sendKeypress(event.key);
+            }
+        });
+        
+        // Focus the window to ensure keyboard events are captured
+        window.focus();
+        
+        // Start connection when page loads
+        window.addEventListener('load', function() {
+            connectToServer();
+        });
+        
+        // Clean up on page unload
+        window.addEventListener('beforeunload', function() {
+            if (eventSource) {
+                eventSource.close();
+            }
+        });
+    </script>
+</body>
+</html>
