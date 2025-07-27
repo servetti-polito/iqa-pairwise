@@ -1,4 +1,4 @@
-# Image Quality Assessment - Subjective Evaluation Tool
+# Image Quality Assessment - Pairwise Comparison Tool
 
 A Python Flask web application for conducting subjective image quality assessment studies. This tool allows researchers to present image pairs to users and collect their preferences with real-time synchronization across multiple viewing sessions.
 
@@ -17,8 +17,8 @@ A Python Flask web application for conducting subjective image quality assessmen
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/iqa-subjective.git
-   cd iqa-subjective
+   git clone https://github.com/servetti-polito/iqa-pairwise.git
+   cd iqa-pairwise
    ```
 
 2. **Install dependencies**:
@@ -43,7 +43,7 @@ A Python Flask web application for conducting subjective image quality assessmen
 ## Project Structure
 
 ```
-iqa-subjective/
+iqa-pairwise/
 ├── app.py                    # Main Flask application
 ├── images.csv               # CSV file with image pairs
 ├── requirements.txt         # Python dependencies
@@ -150,11 +150,11 @@ MIT License - feel free to use this for research or educational purposes.
 If you use this tool in your research, please cite:
 
 ```bibtex
-@software{iqa_subjective_tool,
-  title={Image Quality Assessment - Subjective Evaluation Tool},
+@software{iqa_pairwise_tool,
+  title={Image Quality Assessment - Pairwise Comparison Tool},
   author={Your Name},
   year={2025},
-  url={https://github.com/yourusername/iqa-subjective}
+  url={https://github.com/servetti-polito/iqa-pairwise}
 }
 ```
 
